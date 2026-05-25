@@ -1,26 +1,18 @@
-"""Backbone architectures for the feature extractor.
+"""Backbone architectures and classifier heads.
 
-Torch / torchvision / opensoundscape imports are kept inside function bodies
-so the module can be imported in a dev-only environment (no ML extras
-installed) without crashing — useful for CI smoke tests.
+Provides a pluggable backbone factory (``build_backbone``) covering the
+M3 grid (ResNet18, ResNet50, EfficientNet-B0, ConvNeXt-Tiny via ``timm``)
+and a classifier head that mirrors the upstream Ovenbird checkpoint format
+so the released state-dict can be loaded directly.
 
-For M2 we expose:
-
-- :func:`build_resnet18_1ch`: ResNet18 stub with single-channel input and no
-  classifier head, suitable as a feature extractor.
-- :class:`Resnet18Classifier`: full classifier (embedder + linear head) that
-  mirrors upstream ``Resnet18_Classifier`` so the released Ovenbird checkpoint
-  state-dict loads cleanly.
-- :func:`load_ovenbird_checkpoint`: build the architecture, load the
-  state-dict and wrap in an :class:`opensoundscape.CNN` ready for ``embed``.
-
-Ported from ``external/upstream/src/model.py`` (Lapp et al. 2025).
+Torch / torchvision / timm / opensoundscape are imported lazily so the
+module can be imported in a dev-only environment.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     import torch
@@ -32,44 +24,93 @@ NUM_CLASSES_PAPER = 234
 """Number of individual Ovenbirds in the released checkpoint's training set."""
 
 
-def build_resnet18_1ch() -> nn.Module:
-    """Construct a ResNet18 with 1-channel conv1 and identity FC head.
+BackboneName = Literal["resnet18", "resnet50", "efficientnet_b0", "convnext_tiny"]
+"""Supported backbones for the M3 experiment grid."""
 
-    No pretrained ImageNet weights are loaded — callers either train from
-    scratch or replace the weights via ``load_state_dict``.
+
+_FEATURE_DIM: dict[str, int] = {
+    "resnet18": 512,
+    "resnet50": 2048,
+    "efficientnet_b0": 1280,
+    "convnext_tiny": 768,
+}
+
+
+def backbone_feature_dim(name: BackboneName) -> int:
+    """Output feature dimension of the named backbone after pooling."""
+    if name not in _FEATURE_DIM:
+        raise ValueError(f"unknown backbone: {name}")
+    return _FEATURE_DIM[name]
+
+
+def build_backbone(name: BackboneName, *, pretrained: bool = False) -> nn.Module:
+    """Build a 1-channel feature extractor with no classifier head.
+
+    Uses ``torchvision`` for ResNet (so the upstream Ovenbird checkpoint
+    state-dict loads cleanly) and ``timm`` for the rest. ``pretrained=False``
+    means no weights are downloaded — callers either train from scratch or
+    replace via ``load_state_dict``. ``pretrained=True`` requires network
+    access to the relevant model hub.
     """
     import torch.nn as nn
     import torchvision.models as tvm
     from opensoundscape.ml import cnn_architectures
 
-    model = tvm.resnet18(weights=None)
-    model.conv1 = cnn_architectures.change_conv2d_channels(model.conv1, num_channels=1)
-    model.fc = nn.Identity()
-    model.constructor_name = "resnet18_1ch_embedder"
+    if name == "resnet18":
+        weights = tvm.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
+        model = tvm.resnet18(weights=weights)
+        model.conv1 = cnn_architectures.change_conv2d_channels(model.conv1, num_channels=1)
+        model.fc = nn.Identity()
+    elif name == "resnet50":
+        weights = tvm.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None
+        model = tvm.resnet50(weights=weights)
+        model.conv1 = cnn_architectures.change_conv2d_channels(model.conv1, num_channels=1)
+        model.fc = nn.Identity()
+    elif name in ("efficientnet_b0", "convnext_tiny"):
+        import timm
+
+        model = timm.create_model(name, pretrained=pretrained, in_chans=1, num_classes=0)
+    else:
+        raise ValueError(f"unknown backbone: {name}")
+
+    model.constructor_name = f"{name}_1ch_embedder"
     return model  # type: ignore[no-any-return]
 
 
-def _build_classifier(num_classes: int) -> nn.Module:
+def build_resnet18_1ch() -> nn.Module:
+    """Compatibility alias for the M1/M2 callers."""
+    return build_backbone("resnet18", pretrained=False)
+
+
+def _build_classifier(num_classes: int, backbone: BackboneName = "resnet18") -> nn.Module:
+    """Build a ``backbone + linear head`` classifier."""
     import torch.nn as nn
 
-    class Resnet18Classifier(nn.Module):
-        def __init__(self, num_classes: int) -> None:
+    feature_dim = backbone_feature_dim(backbone)
+
+    class Classifier(nn.Module):
+        def __init__(self) -> None:
             super().__init__()
-            self.embedder = build_resnet18_1ch()
-            self.classifier = nn.Linear(512, num_classes)
-            self.constructor_name = "Resnet18_Classifier"
+            self.embedder = build_backbone(backbone, pretrained=False)
+            self.classifier = nn.Linear(feature_dim, num_classes)
+            self.constructor_name = f"{backbone}_classifier"
 
         def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
             emb = self.embedder(x)
             logits = self.classifier(emb)
             return emb, logits
 
-    return Resnet18Classifier(num_classes=num_classes)
+    return Classifier()
 
 
 def Resnet18Classifier(num_classes: int) -> nn.Module:
-    """Factory for the Ovenbird-style classifier (embedder + linear head)."""
-    return _build_classifier(num_classes=num_classes)
+    """Factory for the Ovenbird-style ResNet18 classifier (M1/M2 alias)."""
+    return _build_classifier(num_classes=num_classes, backbone="resnet18")
+
+
+def build_classifier(num_classes: int, backbone: BackboneName = "resnet18") -> nn.Module:
+    """Build a classifier for any supported backbone."""
+    return _build_classifier(num_classes=num_classes, backbone=backbone)
 
 
 def load_ovenbird_checkpoint(
@@ -79,18 +120,13 @@ def load_ovenbird_checkpoint(
     sample_duration: float = 2.0,
     num_classes: int = NUM_CLASSES_PAPER,
 ) -> CNN:
-    """Build the architecture, load the checkpoint and return a ready CNN.
-
-    The returned ``opensoundscape.CNN`` has ``embedding_layer="avgpool"`` so a
-    subsequent call to ``cnn.embed(df)`` yields 512-dim feature vectors —
-    matching the upstream demo behaviour.
-    """
+    """Build the ResNet18 classifier, load the upstream checkpoint and return a ready CNN."""
     import torch
     from opensoundscape import CNN
 
     from bioacid.preprocessor import OvenbirdPreprocessor
 
-    classifier = _build_classifier(num_classes=num_classes)
+    classifier = _build_classifier(num_classes=num_classes, backbone="resnet18")
     state_dict = torch.load(Path(checkpoint_path), map_location=device, weights_only=True)
     classifier.load_state_dict(state_dict)
     classifier.to(device)
@@ -106,7 +142,11 @@ def load_ovenbird_checkpoint(
 
 __all__ = [
     "NUM_CLASSES_PAPER",
+    "BackboneName",
     "Resnet18Classifier",
+    "backbone_feature_dim",
+    "build_backbone",
+    "build_classifier",
     "build_resnet18_1ch",
     "load_ovenbird_checkpoint",
 ]
