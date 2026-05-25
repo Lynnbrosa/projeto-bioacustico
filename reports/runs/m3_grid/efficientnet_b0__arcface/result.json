@@ -1,0 +1,28 @@
+{
+  "config": {
+    "backbone": "efficientnet_b0",
+    "loss": "arcface",
+    "epochs": 10,
+    "batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "num_workers": 0,
+    "seed": 42,
+    "arcface_scale": 30.0,
+    "arcface_margin": 0.5
+  },
+  "metrics": {
+    "ari": 0.06725146198830409,
+    "nmi": 0.2686265795223606,
+    "fmi": 0.18460145253541552,
+    "homogeneity": 0.2423373505488011,
+    "completeness": 0.30131367536914394,
+    "v_measure": 0.26862657952236063,
+    "purity": 0.34,
+    "hungarian_accuracy": 0.34
+  },
+  "train_seconds": 30.39441156387329,
+  "embed_seconds": 1.7187988758087158,
+  "final_train_loss": 15.636213520595005,
+  "final_train_top1": 0.0
+}

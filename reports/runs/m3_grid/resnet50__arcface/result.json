@@ -1,0 +1,28 @@
+{
+  "config": {
+    "backbone": "resnet50",
+    "loss": "arcface",
+    "epochs": 10,
+    "batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0,
+    "num_workers": 0,
+    "seed": 42,
+    "arcface_scale": 30.0,
+    "arcface_margin": 0.5
+  },
+  "metrics": {
+    "ari": 0.053972852620848756,
+    "nmi": 0.22412111449838684,
+    "fmi": 0.22240623545012778,
+    "homogeneity": 0.17651458773848747,
+    "completeness": 0.30689039792278167,
+    "v_measure": 0.22412111449838687,
+    "purity": 0.26,
+    "hungarian_accuracy": 0.26
+  },
+  "train_seconds": 53.84156084060669,
+  "embed_seconds": 3.1942076683044434,
+  "final_train_loss": 13.869868578229632,
+  "final_train_top1": 0.014285714285714285
+}
