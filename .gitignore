@@ -1,0 +1,89 @@
+# Claude Code
+.claude/
+.claude.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# uv
+.uv/
+uv.lock
+
+# Notebooks
+.ipynb_checkpoints/
+*-checkpoint.ipynb
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Data (large / private)
+data/raw/
+data/interim/
+data/processed/
+*.wav
+*.mp3
+*.flac
+*.npy
+*.npz
+*.parquet
+
+# Model artifacts
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# W&B
+wandb/
+
+# External clones (referência, não versionar aqui)
+external/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+logs/
+tmp/
