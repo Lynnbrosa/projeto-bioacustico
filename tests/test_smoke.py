@@ -17,13 +17,14 @@ def test_version_exposed() -> None:
 @pytest.mark.parametrize(
     "module",
     [
+        "bioacid.cli",
+        "bioacid.cluster",
         "bioacid.data",
-        "bioacid.models",
+        "bioacid.evaluate",
         "bioacid.losses",
+        "bioacid.models",
         "bioacid.preprocessor",
         "bioacid.train",
-        "bioacid.evaluate",
-        "bioacid.cli",
     ],
 )
 def test_submodule_importable(module: str) -> None:

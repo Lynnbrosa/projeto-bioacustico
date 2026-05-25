@@ -245,6 +245,8 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pyyaml" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "tqdm" },
 ]
 
@@ -262,7 +264,6 @@ ml = [
     { name = "matplotlib" },
     { name = "opensoundscape" },
     { name = "pytorch-metric-learning" },
-    { name = "scikit-learn" },
     { name = "seaborn" },
     { name = "torch" },
     { name = "torchvision" },
@@ -285,7 +286,8 @@ requires-dist = [
     { name = "pytorch-metric-learning", marker = "extra == 'ml'" },
     { name = "pyyaml" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "scikit-learn", marker = "extra == 'ml'" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "seaborn", marker = "extra == 'ml'" },
     { name = "torch", marker = "extra == 'ml'", specifier = ">=2.2" },
     { name = "torchvision", marker = "extra == 'ml'" },

@@ -19,6 +19,8 @@ dependencies = [
     "pandas",
     "pyarrow",
     "pyyaml",
+    "scikit-learn",
+    "scipy",
     "tqdm",
 ]
 
@@ -28,7 +30,6 @@ ml = [
     "torchvision",
     "opensoundscape",
     "pytorch-metric-learning",
-    "scikit-learn",
     "umap-learn",
     "hdbscan",
     "wandb",
