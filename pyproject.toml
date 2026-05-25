@@ -1,0 +1,85 @@
+[project]
+name = "bioacid"
+version = "0.0.1"
+description = "Bioacoustic individual identification pipeline (replication of Lapp et al. 2025 + neotropical extension)."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "MIT" }
+authors = [{ name = "Lynnbrosa" }]
+keywords = ["bioacoustics", "individual-id", "passive-acoustic-monitoring", "birdsong"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "pyyaml",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=2.2",
+    "torchvision",
+    "opensoundscape",
+    "pytorch-metric-learning",
+    "scikit-learn",
+    "umap-learn",
+    "hdbscan",
+    "wandb",
+    "seaborn",
+    "matplotlib",
+]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pytest>=8",
+    "pytest-cov",
+    "types-pyyaml",
+    "pandas-stubs",
+]
+
+[project.scripts]
+bioacid = "bioacid.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bioacid"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF", "SIM"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["E501"]
+"notebooks/**" = ["E501", "F401"]
+"tests/**" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/bioacid"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
