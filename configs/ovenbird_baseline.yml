@@ -1,0 +1,46 @@
+# Baseline configuration: ResNet18 + supervised cross-entropy on the public
+# Ovenbird sample dataset. Mirrors the defaults reported in Lapp et al. 2025.
+
+experiment:
+  name: ovenbird_baseline
+  seed: 42
+  output_dir: reports/runs/ovenbird_baseline
+
+data:
+  csv: external/upstream/sample_data/labeled_clips_sample.csv
+  audio_root: external/upstream/sample_data/audio
+  split_column: split
+  label_column: individual_id
+  sample_rate: 32000
+  clip_length_s: 1.5
+
+preprocessing:
+  type: mel_spectrogram
+  bandpass_hz: [2000, 10000]
+  n_mels: 128
+  log_amplitude_range_db: [-55, -10]
+  spec_augment: false
+
+model:
+  backbone: resnet18
+  pretrained: true
+  embedding_dim: 128
+
+loss:
+  type: cross_entropy
+
+optim:
+  optimizer: adam
+  lr: 0.001
+  weight_decay: 0.0
+  batch_size: 64
+  epochs: 30
+
+clustering:
+  method: hdbscan
+  min_cluster_size: 5
+  min_samples: 3
+
+tracking:
+  wandb_mode: offline
+  project: bioacid

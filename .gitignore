@@ -26,16 +26,14 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual environments
+# Virtual environments (.python-version fica versionado pra pinar a versão)
 .venv/
 venv/
 env/
 ENV/
-.python-version
 
-# uv
+# uv cache (lockfile uv.lock fica versionado)
 .uv/
-uv.lock
 
 # Notebooks
 .ipynb_checkpoints/
