@@ -49,6 +49,8 @@ class TrainConfig:
     seed: int = 42
     arcface_scale: float = 30.0
     arcface_margin: float = 0.5
+    supcon_temperature: float = 0.07
+    spec_augment: bool = False
 
 
 def train_supervised(
@@ -97,6 +99,7 @@ def train_supervised(
         num_classes=num_classes,
         arcface_scale=cfg.arcface_scale,
         arcface_margin=cfg.arcface_margin,
+        supcon_temperature=cfg.supcon_temperature,
     ).to(device)
 
     params = list(backbone.parameters()) + list(loss_head.parameters())

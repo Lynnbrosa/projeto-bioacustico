@@ -13,6 +13,7 @@ in dev-only environments.
 
 from __future__ import annotations
 
+import functools
 import random
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +22,15 @@ if TYPE_CHECKING:
     from opensoundscape.preprocess.preprocessors import SpectrogramPreprocessor
 
 
+@functools.cache
 def _jitter_action_cls() -> type[BaseAction]:
+    """Build (and cache) the ``JitterClipTime`` action class.
+
+    The class body imports opensoundscape lazily and uses the ``register_action_cls``
+    decorator, which mutates global registry state — registering it once per
+    process avoids duplicate-registration warnings on repeated preprocessor
+    construction.
+    """
     from opensoundscape.preprocess.actions import BaseAction, register_action_cls
 
     @register_action_cls
@@ -52,6 +61,8 @@ def OvenbirdPreprocessor(
     bandpass_hz: tuple[int, int] = (2000, 10000),
     max_time_jitter_s: float = 0.5,
     sample_rate: int = 32000,
+    spec_augment: bool = False,
+    freq_mask_max_width: float = 0.1,
 ) -> SpectrogramPreprocessor:
     """Build the Ovenbird spectrogram preprocessor used by Lapp et al. 2025.
 
@@ -61,9 +72,13 @@ def OvenbirdPreprocessor(
     - 2-second clips
     - 2-10 kHz bandpass (relevant Ovenbird song band)
     - audio normalize after trim
-    - frequency mask disabled
+    - frequency mask disabled (unless ``spec_augment=True``)
     - random time-jitter (``max_shift=0.5s``) inserted before load
     - 32 kHz target sample rate
+
+    When ``spec_augment=True``, the upstream ``frequency_mask`` action is
+    enabled and an additional ``time_mask`` action is wired in. The two
+    together approximate SpecAugment (Park et al. 2019).
     """
     from opensoundscape.audio import Audio
     from opensoundscape.preprocess.actions import Action
@@ -83,7 +98,16 @@ def OvenbirdPreprocessor(
         Action(Audio.normalize, is_augmentation=False),
         after_key="trim_audio",
     )
-    preproc.pipeline.frequency_mask.bypass = True
+
+    if spec_augment:
+        # Opensoundscape's SpectrogramPreprocessor ships frequency_mask only;
+        # enable it with a sane width (fraction of spec height). A full
+        # SpecAugment time-warp would need a custom Action class.
+        preproc.pipeline.frequency_mask.bypass = False
+        preproc.pipeline.frequency_mask.set(max_masks=2, max_width=freq_mask_max_width)
+    else:
+        preproc.pipeline.frequency_mask.bypass = True
+
     preproc.insert_action(
         "time_jitter",
         JitterClipTime(max_shift=max_time_jitter_s),
