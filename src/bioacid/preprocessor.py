@@ -53,8 +53,7 @@ def OvenbirdPreprocessor(
     max_time_jitter_s: float = 0.5,
     sample_rate: int = 32000,
     spec_augment: bool = False,
-    time_mask_param: int = 30,
-    freq_mask_param: int = 20,
+    freq_mask_max_width: float = 0.1,
 ) -> SpectrogramPreprocessor:
     """Build the Ovenbird spectrogram preprocessor used by Lapp et al. 2025.
 
@@ -92,16 +91,11 @@ def OvenbirdPreprocessor(
     )
 
     if spec_augment:
-        try:
-            preproc.pipeline.frequency_mask.bypass = False
-            preproc.pipeline.frequency_mask.set(max_masks=2, max_width=freq_mask_param)
-        except (AttributeError, KeyError):
-            pass
-        try:
-            preproc.pipeline.time_mask.bypass = False
-            preproc.pipeline.time_mask.set(max_masks=2, max_width=time_mask_param)
-        except (AttributeError, KeyError):
-            pass
+        # Opensoundscape's SpectrogramPreprocessor ships frequency_mask only;
+        # enable it with a sane width (fraction of spec height). A full
+        # SpecAugment time-warp would need a custom Action class.
+        preproc.pipeline.frequency_mask.bypass = False
+        preproc.pipeline.frequency_mask.set(max_masks=2, max_width=freq_mask_max_width)
     else:
         preproc.pipeline.frequency_mask.bypass = True
 

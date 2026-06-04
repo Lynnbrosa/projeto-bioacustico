@@ -9,20 +9,22 @@
     "num_workers": 0,
     "seed": 42,
     "arcface_scale": 30.0,
-    "arcface_margin": 0.5
+    "arcface_margin": 0.5,
+    "supcon_temperature": 0.07,
+    "spec_augment": false
   },
   "metrics": {
-    "ari": 0.04612996229762697,
-    "nmi": 0.21286418132882423,
-    "fmi": 0.17560833820136085,
-    "homogeneity": 0.18414469006693202,
-    "completeness": 0.25219725629121426,
-    "v_measure": 0.21286418132882423,
-    "purity": 0.28,
-    "hungarian_accuracy": 0.28
+    "ari": 0.03980328876594437,
+    "nmi": 0.23641623191497163,
+    "fmi": 0.16535945694153692,
+    "homogeneity": 0.21034853123370045,
+    "completeness": 0.2698588181637899,
+    "v_measure": 0.23641623191497166,
+    "purity": 0.3,
+    "hungarian_accuracy": 0.3
   },
-  "train_seconds": 58.248536586761475,
-  "embed_seconds": 3.2128524780273438,
-  "final_train_loss": 1.3330865042550224,
-  "final_train_top1": 0.4857142857142857
+  "train_seconds": 103.56471586227417,
+  "embed_seconds": 5.545886278152466,
+  "final_train_loss": 1.2508688926696778,
+  "final_train_top1": 0.5285714285714286
 }
