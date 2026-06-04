@@ -26,9 +26,27 @@ from bioacid.models import load_ovenbird_checkpoint
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = ROOT / "external" / "upstream"
-CHECKPOINT = UPSTREAM / "checkpoints" / "full_2025-04-10T11:02:36.028451_best.pth"
+CHECKPOINTS_DIR = UPSTREAM / "checkpoints"
 CSV_PATH = UPSTREAM / "sample_data" / "labeled_clips_sample.csv"
 OUTPUT = ROOT / "data" / "processed" / "sample_embeddings.parquet"
+
+# The upstream checkpoint ships as ``full_2025-04-10T11:02:36.028451_best.pth``.
+# Windows can't materialise that filename (``:`` is illegal), so on Windows users
+# typically download it as ``ovenbird_best.pth`` (or similar). We auto-detect any
+# ``.pth`` in the checkpoints dir to stay portable.
+_PREFERRED_CHECKPOINTS = (
+    "full_2025-04-10T11:02:36.028451_best.pth",
+    "ovenbird_best.pth",
+)
+
+
+def find_checkpoint() -> Path | None:
+    for name in _PREFERRED_CHECKPOINTS:
+        candidate = CHECKPOINTS_DIR / name
+        if candidate.exists():
+            return candidate
+    fallback = sorted(CHECKPOINTS_DIR.glob("*.pth"))
+    return fallback[0] if fallback else None
 
 
 def main() -> int:
@@ -41,12 +59,26 @@ def main() -> int:
         )
         return 1
 
+    checkpoint = find_checkpoint()
+    if checkpoint is None:
+        print(
+            f"No checkpoint found under {CHECKPOINTS_DIR}.\n"
+            "On Windows the upstream file fails to checkout (colon in filename); "
+            "download it manually with:\n"
+            '  curl -L "https://github.com/sammlapp/ovenbird-individual-recognition/raw/main/'
+            'checkpoints/full_2025-04-10T11%3A02%3A36.028451_best.pth" '
+            "-o external/upstream/checkpoints/ovenbird_best.pth",
+            file=sys.stderr,
+        )
+        return 1
+
     t_total = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"device: {device}")
+    print(f"checkpoint: {checkpoint.name}")
 
     t_step = time.time()
-    cnn = load_ovenbird_checkpoint(CHECKPOINT, device=device)
+    cnn = load_ovenbird_checkpoint(checkpoint, device=device)
     print(f"loaded feature extractor in {time.time() - t_step:.1f}s")
 
     table = load_clip_table(CSV_PATH, audio_root=UPSTREAM)
