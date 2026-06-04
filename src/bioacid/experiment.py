@@ -79,7 +79,7 @@ def run_experiment(
     unique_labels = sorted(train_df["aiid_label"].unique().tolist())
     label_to_index = {label: i for i, label in enumerate(unique_labels)}
 
-    preproc = OvenbirdPreprocessor()
+    preproc = OvenbirdPreprocessor(spec_augment=config.spec_augment)
 
     t_train = time.time()
     backbone, _, history = train_supervised(

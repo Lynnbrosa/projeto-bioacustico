@@ -52,6 +52,9 @@ def OvenbirdPreprocessor(
     bandpass_hz: tuple[int, int] = (2000, 10000),
     max_time_jitter_s: float = 0.5,
     sample_rate: int = 32000,
+    spec_augment: bool = False,
+    time_mask_param: int = 30,
+    freq_mask_param: int = 20,
 ) -> SpectrogramPreprocessor:
     """Build the Ovenbird spectrogram preprocessor used by Lapp et al. 2025.
 
@@ -61,9 +64,13 @@ def OvenbirdPreprocessor(
     - 2-second clips
     - 2-10 kHz bandpass (relevant Ovenbird song band)
     - audio normalize after trim
-    - frequency mask disabled
+    - frequency mask disabled (unless ``spec_augment=True``)
     - random time-jitter (``max_shift=0.5s``) inserted before load
     - 32 kHz target sample rate
+
+    When ``spec_augment=True``, the upstream ``frequency_mask`` action is
+    enabled and an additional ``time_mask`` action is wired in. The two
+    together approximate SpecAugment (Park et al. 2019).
     """
     from opensoundscape.audio import Audio
     from opensoundscape.preprocess.actions import Action
@@ -83,7 +90,21 @@ def OvenbirdPreprocessor(
         Action(Audio.normalize, is_augmentation=False),
         after_key="trim_audio",
     )
-    preproc.pipeline.frequency_mask.bypass = True
+
+    if spec_augment:
+        try:
+            preproc.pipeline.frequency_mask.bypass = False
+            preproc.pipeline.frequency_mask.set(max_masks=2, max_width=freq_mask_param)
+        except (AttributeError, KeyError):
+            pass
+        try:
+            preproc.pipeline.time_mask.bypass = False
+            preproc.pipeline.time_mask.set(max_masks=2, max_width=time_mask_param)
+        except (AttributeError, KeyError):
+            pass
+    else:
+        preproc.pipeline.frequency_mask.bypass = True
+
     preproc.insert_action(
         "time_jitter",
         JitterClipTime(max_shift=max_time_jitter_s),
