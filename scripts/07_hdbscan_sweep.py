@@ -30,7 +30,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from bioacid.cluster import cluster_embeddings
+from bioacid.cluster import hdbscan_cluster, reduce_dims
 from bioacid.evaluate import clustering_metrics
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,49 +62,70 @@ def main() -> int:
     total = len(REDUCTIONS) * len(DIMS) * len(MIN_CLUSTER_SIZES) * len(MIN_SAMPLES)
     print(f"running {total} configurations...")
 
+    cluster_param_pairs = list(product(MIN_CLUSTER_SIZES, MIN_SAMPLES))
+    i = 0
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        for i, (reduction, dim, mcs, ms) in enumerate(
-            product(REDUCTIONS, DIMS, MIN_CLUSTER_SIZES, MIN_SAMPLES), start=1
-        ):
-            if reduction == "none" and dim != DIMS[0]:
-                continue  # no-op variation
-            try:
-                predicted, _ = cluster_embeddings(
-                    features,
-                    reduction_algorithm=reduction,  # type: ignore[arg-type]
-                    reduced_n_dimensions=dim,
-                    min_cluster_size=mcs,
-                    min_samples=ms,
-                    random_state=42,
-                )
-            except Exception as exc:
-                runs.append(
-                    {
-                        "reduction": reduction,
-                        "dims": dim,
-                        "min_cluster_size": mcs,
-                        "min_samples": ms,
-                        "error": repr(exc),
-                    }
-                )
-                continue
-            metrics = clustering_metrics(truth, predicted)
-            n_clusters = len(np.unique(predicted[predicted >= 0]))
-            n_noise = int((predicted < 0).sum())
-            runs.append(
-                {
-                    "reduction": reduction,
-                    "dims": dim,
-                    "min_cluster_size": mcs,
-                    "min_samples": ms,
-                    "n_clusters": n_clusters,
-                    "n_noise": n_noise,
-                    **metrics.as_dict(),
-                }
-            )
-            if i % 20 == 0:
-                print(f"  {i}/{total}")
+        # Reduction is expensive (UMAP/t-SNE on 100 x 512 features takes
+        # ~1 s per call); HDBSCAN on the reduced array is cheap. Compute
+        # the reduction once per (reduction, dim) and sweep the HDBSCAN
+        # params on the cached array.
+        for reduction in REDUCTIONS:
+            for dim in DIMS:
+                if reduction == "none" and dim != DIMS[0]:
+                    i += len(cluster_param_pairs)
+                    continue
+                try:
+                    reduced = reduce_dims(
+                        features,
+                        algorithm=reduction,  # type: ignore[arg-type]
+                        n_components=dim,
+                        random_state=42,
+                    )
+                except Exception as exc:
+                    for mcs, ms in cluster_param_pairs:
+                        i += 1
+                        runs.append(
+                            {
+                                "reduction": reduction,
+                                "dims": dim,
+                                "min_cluster_size": mcs,
+                                "min_samples": ms,
+                                "error": repr(exc),
+                            }
+                        )
+                    continue
+
+                for mcs, ms in cluster_param_pairs:
+                    i += 1
+                    try:
+                        predicted = hdbscan_cluster(reduced, min_cluster_size=mcs, min_samples=ms)
+                    except Exception as exc:
+                        runs.append(
+                            {
+                                "reduction": reduction,
+                                "dims": dim,
+                                "min_cluster_size": mcs,
+                                "min_samples": ms,
+                                "error": repr(exc),
+                            }
+                        )
+                        continue
+                    metrics = clustering_metrics(truth, predicted)
+                    runs.append(
+                        {
+                            "reduction": reduction,
+                            "dims": dim,
+                            "min_cluster_size": mcs,
+                            "min_samples": ms,
+                            "n_clusters": len(np.unique(predicted[predicted >= 0])),
+                            "n_noise": int((predicted < 0).sum()),
+                            **metrics.as_dict(),
+                        }
+                    )
+                    if i % 20 == 0:
+                        print(f"  {i}/{total}")
 
     elapsed = time.time() - t0
     print(f"done in {elapsed:.1f}s")

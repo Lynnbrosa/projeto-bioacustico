@@ -13,6 +13,7 @@ in dev-only environments.
 
 from __future__ import annotations
 
+import functools
 import random
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +22,15 @@ if TYPE_CHECKING:
     from opensoundscape.preprocess.preprocessors import SpectrogramPreprocessor
 
 
+@functools.cache
 def _jitter_action_cls() -> type[BaseAction]:
+    """Build (and cache) the ``JitterClipTime`` action class.
+
+    The class body imports opensoundscape lazily and uses the ``register_action_cls``
+    decorator, which mutates global registry state — registering it once per
+    process avoids duplicate-registration warnings on repeated preprocessor
+    construction.
+    """
     from opensoundscape.preprocess.actions import BaseAction, register_action_cls
 
     @register_action_cls

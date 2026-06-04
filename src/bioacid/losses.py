@@ -149,12 +149,11 @@ def _build_supcon_head(
             prototypes: torch.Tensor = self.prototypes  # type: ignore[assignment]
             counts: torch.Tensor = self.prototype_counts  # type: ignore[assignment]
             with torch.no_grad():
-                for label_idx in torch.unique(labels):
-                    mask = labels == label_idx
-                    prototypes[label_idx] += projections[mask].sum(dim=0)
-                    counts[label_idx] += mask.sum()
-                safe_counts = counts.clamp(min=1).unsqueeze(1)
-                normalized = F.normalize(prototypes / safe_counts, dim=1)
+                # Vectorised running update: scatter-add projections + counts
+                # by label index. Avoids the per-class Python loop.
+                prototypes.index_add_(0, labels, projections.detach())
+                counts.index_add_(0, labels, torch.ones_like(labels, dtype=counts.dtype))
+                normalized = F.normalize(prototypes / counts.clamp(min=1).unsqueeze(1), dim=1)
 
             logits = projections @ normalized.t() / self.temperature
             return logits, loss
