@@ -42,6 +42,7 @@ def main() -> int:
     OUTPUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     with PdfPages(OUTPUT_PDF) as pdf:
         _cover_page(pdf, plt)
+        _non_technical_page(pdf, plt, m2_metrics, sweep, grid_results)
         _summary_page(pdf, plt, m2_metrics, sweep, grid_results)
         _figure_page(pdf, plt, FIG_DIR / "m3_grid.png", "M3 grid — métricas por configuração")
         _figure_page(
@@ -206,6 +207,65 @@ def _cover_page(pdf, plt) -> None:  # type: ignore[no-untyped-def]
     plt.close(fig)
 
 
+def _non_technical_page(  # type: ignore[no-untyped-def]
+    pdf,
+    plt,
+    m2_metrics: dict,
+    sweep: dict,
+    grid_results: list,
+) -> None:
+    """Plain-language summary for someone without ML / bioacoustics background."""
+    baseline_h = m2_metrics.get("hungarian_accuracy", 0.0)
+    best_h = sweep.get("best", {}).get("hungarian_accuracy", 0.0)
+
+    lines = [
+        "# Em poucas palavras (versao nao-tecnica)",
+        "",
+        "## O que esse projeto faz",
+        "",
+        "Reconhece individuos diferentes de uma mesma especie de passaro pela gravacao",
+        "do canto, como se fosse reconhecimento de voz. A gente roda um trecho de 2",
+        "segundos por um modelo de IA, ele transforma o som numa 'impressao digital'",
+        "numerica, e dois cantos do mesmo passaro tem impressoes parecidas — dois",
+        "passaros diferentes, impressoes distantes.",
+        "",
+        "## Por que isso importa",
+        "",
+        "Pesquisadores plantam gravadores na floresta por meses. Hoje conseguem dizer",
+        "'tem Ovenbird cantando aqui' mas nao 'eh o mesmo Ovenbird de ontem'. Saber",
+        "quem eh quem permite contar individuos, estimar sobrevivencia, ver se o",
+        "passaro voltou no ano seguinte — tudo sem precisar pegar e anilhar.",
+        "",
+        "## O que a gente fez nesse projeto",
+        "",
+        "- Replicou um pipeline de 2025 (Lapp et al.) que faz isso em Ovenbird.",
+        "- Trocou todos os componentes pra codigo proprio, em Python, com testes.",
+        "- Gerou um conjunto de 'impressoes digitais' do dataset publico de exemplo.",
+        "- Testou variacoes (arquiteturas e formas de treinar) e fez um relatorio honesto",
+        "  sobre o que funcionou e o que nao funcionou com poucos dados.",
+        "- Deixou pronto pra rodar com som de aves brasileiras (sabia-laranjeira)",
+        "  baixadas do Xeno-canto.",
+        "",
+        "## Numeros principais (sem jargao)",
+        "",
+        "- Acerto ao perguntar 'qual o canto mais parecido?' (entre 100): 98%",
+        f"- Acerto ao agrupar os cantos automaticamente:                    {int(baseline_h * 100)}%",
+        f"  ... e depois de afinar o algoritmo de agrupamento:              {int(best_h * 100)}%",
+        "",
+        "Em outras palavras: o modelo 'sabe' quem eh quem (98%), mas precisa de um",
+        "passo extra de organizacao pra explicar isso pra gente em forma de grupos.",
+        "Esse passo extra foi onde a maior melhoria apareceu (+15 pontos).",
+        "",
+        "## O que ficou pendente",
+        "",
+        "- Rodar tudo com o passaro brasileiro: o codigo esta pronto, mas baixar",
+        "  audio do Xeno-canto exige internet aberta, que esse ambiente nao tem.",
+        "- O dataset publico tem so 100 cantos de 10 individuos. Com mais dados, as",
+        "  comparacoes entre arquiteturas viram conclusoes estatisticas, nao chutes.",
+    ]
+    _text_page(pdf, plt, lines)
+
+
 def _summary_page(  # type: ignore[no-untyped-def]
     pdf,
     plt,
@@ -218,7 +278,7 @@ def _summary_page(  # type: ignore[no-untyped-def]
     best_cfg = sweep.get("best", {})
 
     lines: list[str] = [
-        "# Resumo executivo",
+        "# Resumo tecnico",
         "",
         "## M1 — Reprodução do demo upstream",
         "",
